@@ -36,7 +36,39 @@ class Discriminator(nn.module):
 			# Like regular ReLu but it has a slope for negative values instead of a constant value
 			nn.LeakyReLU(0.2)
 		)
-		
+
 	# To move through the layers?
 	def forward(self, x):
-		return self.disc(x) 
+		return self.disc(x)
+
+class Generator(nn.Module):
+	def __init__(self, z_dim, channels_img, features_g):
+		super(Generator, self).__init__()
+		self.net = nn.Sequential(
+			# Input: N x z_dim x 1 x 1
+			self._block(z_dim, features_g*16, 4, 1, 0), # N x f_g*16 x 4 x 4
+			self._block(features_g*16, features_g*8, 4, 1, 0), # 8 x 8
+			self._block(features_g*8, features_g*4, 4, 1, 0), # 16 x 16
+			self._block(features_g*4, features_g*2, 4, 1, 0), # 32 x 32
+			# Final image is 64 x 64 pixels
+			nn.ConvTranspose2d(
+				features_g*2, channels_img, kernel_size=4, stride=2, padding=1
+			),
+			nn.Tanh(), # To adjust pixel values to the span [-1, 1]
+		)
+	
+	def _block(self, in_channels, out_channels, kernel_size, stride, padding):
+		return nn.Sequential(
+			# Transposed convolution (upscales the image?)
+			# Again, no bias since we use batch normalization between layers
+			nn.ConvTranspose2d(
+				in_channels,
+				out_channels,
+				kernel_size,
+				stride,
+				padding,
+				bias=False
+			),
+			nn.BatchNorm2d(out_channels),
+			nn.ReLU(), # Regular ReLU, as in the paper
+		)
