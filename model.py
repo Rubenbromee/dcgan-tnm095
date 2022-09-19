@@ -8,7 +8,7 @@ import torch.nn as nn
 
 # nn.module is a base class for all neural network models in pytorch
 # The models should subclass this class
-class Discriminator(nn.module):
+class Discriminator(nn.Module):
 	def __init__(self, channels_img, features_d):
 		super(Discriminator, self).__init__()
 		self.disc = nn.Sequential(
@@ -44,18 +44,21 @@ class Discriminator(nn.module):
 class Generator(nn.Module):
 	def __init__(self, z_dim, channels_img, features_g):
 		super(Generator, self).__init__()
-		self.net = nn.Sequential(
+		self.gen = nn.Sequential(
 			# Input: N x z_dim x 1 x 1
 			self._block(z_dim, features_g*16, 4, 1, 0), # N x f_g*16 x 4 x 4
-			self._block(features_g*16, features_g*8, 4, 1, 0), # 8 x 8
-			self._block(features_g*8, features_g*4, 4, 1, 0), # 16 x 16
-			self._block(features_g*4, features_g*2, 4, 1, 0), # 32 x 32
+			self._block(features_g*16, features_g*8, 4, 2, 1), # 8 x 8
+			self._block(features_g*8, features_g*4, 4, 2, 1), # 16 x 16
+			self._block(features_g*4, features_g*2, 4, 2, 1), # 32 x 32
 			# Final image is 64 x 64 pixels
 			nn.ConvTranspose2d(
 				features_g*2, channels_img, kernel_size=4, stride=2, padding=1
 			),
 			nn.Tanh(), # To adjust pixel values to the span [-1, 1]
 		)
+	
+	def forward (self, x):
+		return self.gen(x)
 	
 	def _block(self, in_channels, out_channels, kernel_size, stride, padding):
 		return nn.Sequential(
@@ -72,3 +75,24 @@ class Generator(nn.Module):
 			nn.BatchNorm2d(out_channels),
 			nn.ReLU(), # Regular ReLU, as in the paper
 		)
+
+# Set up initial weights for disc/gen as a normal distribution
+def initialize_weights(model):
+	for m in model.modules():
+		if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
+			nn.init.normal_(m.weight.data, 0.0, 0.02)
+
+# Test to make sure the shapes of the gen/disc match up with those in the paper
+def test():
+	N, in_channels, H, W = 8, 3, 64, 64
+	z_dim = 100
+	x = torch.randn(N, in_channels, H, W) # Random image noise
+	disc = Discriminator(in_channels, 8)
+	initialize_weights(disc)
+	assert disc(x).shape == (N, 1, 1, 1)
+	gen = Generator(z_dim, in_channels, 8)
+	z = torch.randn((N, z_dim, 1, 1)) # Latent noise
+	assert gen(z).shape == (N, in_channels, H, W)
+	print("Success")
+
+# test()
