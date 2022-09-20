@@ -5,7 +5,7 @@ import torch.optim as optim
 import torchvision
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from torch.utils.data import dataloader
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from model import Discriminator, Generator, initialize_weights
 
@@ -24,7 +24,7 @@ FEATURES_GEN = 64
 # Resizes the training data, makes it into a tensor and normalizes the pixel values
 transforms = transforms.Compose(
 	[
-		transforms.Resize(IMAGE_SIZE, IMAGE_SIZE),
+		transforms.Resize(IMAGE_SIZE),
 		transforms.ToTensor(),
 		transforms.Normalize([0.5 for _ in range(CHANNELS_IMG)], [0.5 for _ in range(CHANNELS_IMG)]),
 	]
@@ -32,7 +32,7 @@ transforms = transforms.Compose(
 
 # Data loading
 dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms, download=True)
-loader = dataloader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device) # Sending the generator to the device
 disc = Discriminator(CHANNELS_IMG, FEATURES_DISC).to(device) # Sending the discriminator to the device
@@ -58,16 +58,39 @@ for epoch in range(NUM_EPOCHS):
 	for batch_idx, (real, _) in enumerate(loader):
 		real = real.to(device) # Send real training data to device
 		noise = torch.randn((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
+		fake = gen(noise)
 
 		# Train Discriminator max log(D(x)) + log(1 - D(G(z)))
 		disc_real = disc(real).reshape(-1) # To get a singular value instead of N x 1 x 1 x 1
 		loss_disc_real = criterion(disc_real, torch.ones_like(disc_real))
 		disc_fake = disc(fake).reshape(-1)
-		loss_disc_fake = criterion(fake, torch.zeros_like(disc_fake))
+		loss_disc_fake = criterion(disc_fake, torch.zeros_like(disc_fake))
 		loss_disc = (loss_disc_real + loss_disc_fake) / 2
 		disc.zero_grad()
 		loss_disc.backward(retain_graph=True)
 		opt_disc.step()
 
 		# Train Generator min log(1 - D(G(z))) <-> max log(D(G(z)))
+		output = disc(fake).reshape(-1)
+		loss_gen = criterion(output, torch.ones_like(output))
+		gen.zero_grad()
+		loss_gen.backward()
+		opt_gen.step()
 
+		if batch_idx % 100 == 0:
+			print(
+                f"Epoch [{epoch}/{NUM_EPOCHS}] Batch {batch_idx}/{len(loader)} \
+                  Loss D: {loss_disc:.4f}, loss G: {loss_gen:.4f}"
+            )
+
+			with torch.no_grad():
+				fake = gen(fixed_noise)
+				img_grid_real = torchvision.utils.make_grid(
+					real[:32], normalize=True
+				)
+				img_grid_fake = torchvision.utils.make_grid(
+					fake[:32], normalize=True
+				)
+				writer_real.add_image("Real", img_grid_real, global_step=step)
+				writer_fake.add_image("Fake", img_grid_fake, global_step=step)
+			step += 1
