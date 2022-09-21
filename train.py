@@ -1,3 +1,4 @@
+from datetime import datetime
 from http.client import LENGTH_REQUIRED
 import torch
 import torch.nn as nn
@@ -17,7 +18,7 @@ BATCH_SIZE = 128
 IMAGE_SIZE = 64
 CHANNELS_IMG = 1 # Grayscale/RGB/RGBA etc.
 Z_DIM = 100 # Dimension of the initial uniform distribution from the paper
-NUM_EPOCHS = 5 # Number of training cycles
+NUM_EPOCHS = 10 # Number of training cycles
 FEATURES_DISC = 64 
 FEATURES_GEN = 64
 
@@ -47,20 +48,21 @@ criterion = nn.BCELoss() # Binary cross entropy loss function
 # To see progression
 fixed_noise = torch.randn(32, Z_DIM, 1, 1).to(device) 
 # Visualization?
-writer_real = SummaryWriter(f"logs/real")
-writer_fake = SummaryWriter(f"logs/fake")
+writer_real = SummaryWriter(f"logs/real" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+writer_fake = SummaryWriter(f"logs/fake" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 step = 0
 
 gen.train()
 disc.train()
 
 for epoch in range(NUM_EPOCHS):
+	# Since GAN:s are unsupervised we don't use the image labels in training
 	for batch_idx, (real, _) in enumerate(loader):
 		real = real.to(device) # Send real training data to device
 		noise = torch.randn((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
-		fake = gen(noise)
+		fake = gen(noise) # Fake images generated as noise
 
-		# Train Discriminator max log(D(x)) + log(1 - D(G(z)))
+		# Train Discriminator wants to maximize: log(D(x)) + log(1 - D(G(z)))
 		disc_real = disc(real).reshape(-1) # To get a singular value instead of N x 1 x 1 x 1
 		loss_disc_real = criterion(disc_real, torch.ones_like(disc_real))
 		disc_fake = disc(fake).reshape(-1)
