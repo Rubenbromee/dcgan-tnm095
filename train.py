@@ -16,7 +16,7 @@ LEARNING_RATE = 2e-4 # How drastic the change of the model is between each epoch
 # 2 x 64 to train gen and disc in parallell?
 BATCH_SIZE = 128 
 IMAGE_SIZE = 64
-CHANNELS_IMG = 1 # Grayscale/RGB/RGBA etc.
+CHANNELS_IMG = 3 # Grayscale/RGB/RGBA etc.
 Z_DIM = 100 # Dimension of the initial uniform distribution from the paper
 NUM_EPOCHS = 10 # Number of training cycles
 FEATURES_DISC = 64 
@@ -25,14 +25,17 @@ FEATURES_GEN = 64
 # Resizes the training data, makes it into a tensor and normalizes the pixel values
 transforms = transforms.Compose(
 	[
-		transforms.Resize(IMAGE_SIZE),
+		transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
 		transforms.ToTensor(),
 		transforms.Normalize([0.5 for _ in range(CHANNELS_IMG)], [0.5 for _ in range(CHANNELS_IMG)]),
 	]
 )
 
 # Data loading
-dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
+# dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
+#                        download=True)
+# dataset = datasets.ImageFolder(root="celeb_dataset", transform=transforms, split='train')
+dataset = datasets.CelebA(root="dataset/", split='train', transform=transforms,
                        download=True)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
