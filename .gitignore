@@ -124,3 +124,4 @@ dmypy.json
 .pyre/
 
 dataset/
+celeb_dataset/

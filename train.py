@@ -16,7 +16,7 @@ LEARNING_RATE = 2e-4 # How drastic the change of the model is between each epoch
 # 2 x 64 to train gen and disc in parallell?
 BATCH_SIZE = 128 
 IMAGE_SIZE = 64
-CHANNELS_IMG = 3 # Grayscale/RGB/RGBA etc.
+CHANNELS_IMG = 1 # Grayscale/RGB/RGBA etc.
 Z_DIM = 100 # Dimension of the initial uniform distribution from the paper
 NUM_EPOCHS = 10 # Number of training cycles
 FEATURES_DISC = 64 
@@ -32,7 +32,8 @@ transforms = transforms.Compose(
 )
 
 # Data loading
-dataset = datasets.CelebA(root="dataset/", transform=transforms, download=True)
+dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
+                       download=True)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device) # Sending the generator to the device
