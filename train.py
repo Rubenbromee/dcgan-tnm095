@@ -34,7 +34,7 @@ transforms = transforms.Compose(
 # Data loading
 # dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
 #                        download=True)
-# dataset = datasets.ImageFolder(root="celeb_dataset", transform=transforms, split='train')
+
 dataset = datasets.CelebA(root="dataset/", split='train', transform=transforms,
                        download=True)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -47,13 +47,13 @@ initialize_weights(disc) # Initialize weights for all operations in the discrimi
 # Optimizers for the weights? Uses Adam algorithm?
 opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
-criterion = nn.BCELoss() # Binary cross entropy loss function
+criterion = nn.CrossEntropyLoss() # 
 
 # To see progression
 fixed_noise = torch.randn(32, Z_DIM, 1, 1).to(device) 
 # Visualization?
-writer_real = SummaryWriter(f"logs/real" + datetime.now().strftime("%Y%m%d-%H%M%S"))
-writer_fake = SummaryWriter(f"logs/fake" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+writer_real = SummaryWriter(f"logs/real" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss CrossEntropyLoss" + "Dataset CELEBA" + "Epochs " + str(NUM_EPOCHS))
+writer_fake = SummaryWriter(f"logs/fake" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss CrossEntropyLoss" + "Dataset CELEBA" + "Epochs " + str(NUM_EPOCHS))
 step = 0
 
 gen.train()
