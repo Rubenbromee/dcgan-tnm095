@@ -1,3 +1,5 @@
+from cProfile import label
+from configparser import Interpolation
 from datetime import datetime
 from http.client import LENGTH_REQUIRED
 import torch
@@ -9,6 +11,11 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from model import Discriminator, Generator, initialize_weights
+import matplotlib.pyplot as plt
+import cv2 
+import os
+import PIL
+import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Determining GPU or CPU
 LEARNING_RATE = 2e-4 # How drastic the change of the model is between each epoch
@@ -16,11 +23,15 @@ LEARNING_RATE = 2e-4 # How drastic the change of the model is between each epoch
 # 2 x 64 to train gen and disc in parallell?
 BATCH_SIZE = 128 
 IMAGE_SIZE = 64
-CHANNELS_IMG = 3 # Grayscale/RGB/RGBA etc.
+CHANNELS_IMG = 1 # Grayscale/RGB/RGBA etc.
 Z_DIM = 100 # Dimension of the initial uniform distribution from the paper
-NUM_EPOCHS = 10 # Number of training cycles
+NUM_EPOCHS = 6 # Number of training cycles
 FEATURES_DISC = 64 
 FEATURES_GEN = 64
+
+# For plotting
+loss_data_gen = []
+loss_data_disc = []
 
 # Resizes the training data, makes it into a tensor and normalizes the pixel values
 transforms = transforms.Compose(
@@ -32,11 +43,11 @@ transforms = transforms.Compose(
 )
 
 # Data loading
-# dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
-#                        download=True)
-
-dataset = datasets.CelebA(root="dataset/", split='train', transform=transforms,
+dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms,
                        download=True)
+
+# dataset = datasets.CelebA(root="dataset/", split='train', transform=transforms,
+#                        download=True)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device) # Sending the generator to the device
@@ -47,13 +58,13 @@ initialize_weights(disc) # Initialize weights for all operations in the discrimi
 # Optimizers for the weights? Uses Adam algorithm?
 opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
-criterion = nn.CrossEntropyLoss() # 
+criterion = nn.MSELoss() # 
 
 # To see progression
 fixed_noise = torch.randn(32, Z_DIM, 1, 1).to(device) 
 # Visualization?
-writer_real = SummaryWriter(f"logs/real" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss CrossEntropyLoss" + "Dataset CELEBA" + "Epochs " + str(NUM_EPOCHS))
-writer_fake = SummaryWriter(f"logs/fake" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss CrossEntropyLoss" + "Dataset CELEBA" + "Epochs " + str(NUM_EPOCHS))
+writer_real = SummaryWriter(f"logs/real" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss MSE" + "Dataset MNIST" + "Epochs " + str(NUM_EPOCHS))
+writer_fake = SummaryWriter(f"logs/fake" + datetime.now().strftime("%Y%m%d-%H%M%S") + "Loss MSE" + "Dataset MNIST" + "Epochs " + str(NUM_EPOCHS))
 step = 0
 
 gen.train()
@@ -89,6 +100,11 @@ for epoch in range(NUM_EPOCHS):
                   Loss D: {loss_disc:.4f}, loss G: {loss_gen:.4f}"
             )
 
+			
+
+			loss_data_disc.append(loss_disc.cpu().detach().numpy())
+			loss_data_gen.append(loss_gen.cpu().detach().numpy())
+
 			with torch.no_grad():
 				fake = gen(fixed_noise)
 				img_grid_real = torchvision.utils.make_grid(
@@ -100,3 +116,38 @@ for epoch in range(NUM_EPOCHS):
 				writer_real.add_image("Real", img_grid_real, global_step=step)
 				writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 			step += 1
+
+			if epoch == 5:
+				for i in range(32):
+					np_fake = fake.cpu().numpy()
+					np_real = real.cpu().numpy()
+
+					path_fake = os.path.join('D:\DCGAN\MSE_5_F', str(batch_idx) + '_' + str(i) + '_F' + '.jpg')
+					path_real = os.path.join('D:\DCGAN\MSE_5_R', str(batch_idx) + '_' + str(i) + '_R' + '.jpg')
+
+					# # MNIST
+					cv2.imwrite(path_fake, np.multiply(np_fake[i, 0, :, :], 255).astype(np.uint8))
+					cv2.imwrite(path_real, np.multiply(np_real[i, 0, :, :], 255).astype(np.uint8))
+
+					# CELEBA
+					# img_reshape_f = np.reshape(np_fake[i, :, :, :], (64, 64, 3))
+					# img_reshape_r = np.reshape(np_real[i, :, :, :], (64, 64, 3))
+					# img_fake = PIL.Image.fromarray(img_reshape_f, 'RGB')
+					# img_real = PIL.Image.fromarray(img_reshape_r, 'RGB')
+					# img_fake.save(path_fake, 'JPEG')
+					# img_real.save(path_real, 'JPEG')
+					# cv2.imwrite(path_fake, np.multiply(img_reshape_f, 255).astype(np.uint8))
+					# cv2.imwrite(path_real, np.multiply(img_reshape_r, 255).astype(np.uint8))
+
+# Plotting
+plt.figure()
+plt.plot(loss_data_disc, label='Loss Discriminator')
+plt.plot(loss_data_gen, label='Loss Generator')
+plt.legend(loc="upper right")
+plt.title(str(NUM_EPOCHS) + ' EPOCHS, MNIST, MSE')
+plt.ylabel('Loss')
+plt.figure()
+np_grid = img_grid_fake.cpu().numpy()
+plt.axis('off')
+plt.imshow(np.transpose(np_grid, (1, 2, 0)), interpolation='nearest')
+plt.show()
