@@ -26,7 +26,7 @@ BATCH_SIZE = 128
 IMAGE_SIZE = 64
 CHANNELS_IMG = 3 # Grayscale/RGB/RGBA etc.
 Z_DIM = 100 # Dimension of the initial uniform distribution from the paper
-NUM_EPOCHS = 11 # Number of training cycles
+NUM_EPOCHS = 6 # Number of training cycles
 FEATURES_DISC = 64 
 FEATURES_GEN = 64
 
@@ -60,7 +60,7 @@ initialize_weights(disc) # Initialize weights for all operations in the discrimi
 # Optimizers for the weights? Uses Adam algorithm?
 opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
 opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
-criterion = nn.BCELoss() # 
+criterion = nn.MSELoss() # 
 
 # To see progression
 fixed_noise = torch.randn(32, Z_DIM, 1, 1).to(device) 
@@ -119,13 +119,13 @@ for epoch in range(NUM_EPOCHS):
 				writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 			step += 1
 
-			if epoch == 10:
+			if epoch == 5:
 				for i in range(32):
 					np_fake = fake.cpu().numpy()
 					np_real = real.cpu().numpy()
 
-					path_fake = os.path.join('D:\DCGAN\CELEBA_BCE_10_F', str(batch_idx) + '_' + str(i) + '_F' + '.jpg')
-					path_real = os.path.join('D:\DCGAN\CELEBA_BCE_10_R', str(batch_idx) + '_' + str(i) + '_R' + '.jpg')
+					path_fake = os.path.join('D:\DCGAN\CELEBA_MSE_5_F', str(batch_idx) + '_' + str(i) + '_F' + '.jpg')
+					path_real = os.path.join('D:\DCGAN\CELEBA_MSE_5_R', str(batch_idx) + '_' + str(i) + '_R' + '.jpg')
 
 					# # MNIST
 
@@ -151,8 +151,9 @@ plt.figure()
 plt.plot(loss_data_disc, label='Loss Discriminator')
 plt.plot(loss_data_gen, label='Loss Generator')
 plt.legend(loc="upper right")
-plt.title(str(NUM_EPOCHS) + ' EPOCHS, CELEBA, BCE')
+plt.title(str(NUM_EPOCHS) + ' EPOCHS, CELEBA, MSE')
 plt.ylabel('Loss')
+plt.xlabel('100s of training samples')
 plt.figure()
 np_grid = img_grid_fake.cpu().numpy()
 plt.axis('off')
